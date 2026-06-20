@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${DB_USER:-order}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-order123}
+      POSTGRES_DB: ${DB_NAME:-order}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-order}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  server:
+    build:
+      context: .
+      dockerfile: deploy/Containerfile.order
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-order}
+      DB_PASSWORD: ${DB_PASSWORD:-order123}
+      DB_NAME: ${DB_NAME:-order}
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key}
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - split
+
+  web:
+    build:
+      context: .
+      dockerfile: deploy/Containerfile.order-web
+    ports:
+      - "3000:80"
+    profiles:
+      - split
+
+  order:
+    build:
+      context: .
+      dockerfile: deploy/Containerfile
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-order}
+      DB_PASSWORD: ${DB_PASSWORD:-order123}
+      DB_NAME: ${DB_NAME:-order}
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key}
+    ports:
+      - "80:80"
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - allinone
+
+volumes:
+  pgdata:

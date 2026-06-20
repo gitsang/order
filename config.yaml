@@ -1,0 +1,16 @@
+server:
+  port: 8080
+
+database:
+  host: localhost
+  port: 5432
+  user: order
+  password: order123
+  dbname: order
+  sslmode: disable
+
+jwt:
+  secret: your-secret-key
+  expiration: 24
+
+loglevel: info
