@@ -14,7 +14,7 @@ RUN apk add --no-cache ca-certificates tzdata
 ENV TZ=Asia/Shanghai
 
 COPY --from=builder /order-server /usr/local/bin/order-server
-COPY migrations /app/migrations
+COPY scripts/migrations /app/migrations
 
 WORKDIR /app
 EXPOSE 8080

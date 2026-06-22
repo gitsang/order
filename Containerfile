@@ -22,7 +22,7 @@ RUN apk add --no-cache ca-certificates tzdata supervisor
 ENV TZ=Asia/Shanghai
 
 COPY --from=server-builder /order-server /usr/local/bin/order-server
-COPY migrations /app/migrations
+COPY scripts/migrations /app/migrations
 
 COPY --from=web-builder /build/build /app/web/build
 COPY --from=web-builder /build/package.json /app/web/

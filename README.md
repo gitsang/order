@@ -23,7 +23,8 @@ order/
 │   ├── model/
 │   ├── repository/
 │   └── service/
-├── migrations/            # Database migrations
+├── scripts/               # Scripts and migrations
+│   └── migrations/
 ├── pkg/                   # Public library code
 │   ├── auth/
 │   ├── database/

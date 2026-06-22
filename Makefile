@@ -54,10 +54,10 @@ test:
 	cd web && pnpm test
 
 migrate-up:
-	migrate -path migrations -database "$(DB_URL)" up
+	migrate -path scripts/migrations -database "$(DB_URL)" up
 
 migrate-down:
-	migrate -path migrations -database "$(DB_URL)" down 1
+	migrate -path scripts/migrations -database "$(DB_URL)" down 1
 
 migrate-create:
-	migrate create -ext sql -dir migrations $(NAME)
+	migrate create -ext sql -dir scripts/migrations $(NAME)
