@@ -43,3 +43,6 @@ web/.env.local
 # Build
 dist/
 tmp/
+
+# Agents
+.sisyphus
