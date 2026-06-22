@@ -51,14 +51,14 @@ func (s *AuthService) Login(username, password string) (string, error) {
 }
 
 func (s *AuthService) Register(username, password, name, phone string) (*model.User, error) {
-	existingUser, _ := s.userRepo.FindByUsername(username)
-	if existingUser != nil {
+	existingUser, err := s.userRepo.FindByUsername(username)
+	if err == nil && existingUser != nil {
 		return nil, errors.New("username already exists")
 	}
 
 	if phone != "" {
-		existingUser, _ = s.userRepo.FindByPhone(phone)
-		if existingUser != nil {
+		existingUser, err = s.userRepo.FindByPhone(phone)
+		if err == nil && existingUser != nil {
 			return nil, errors.New("phone already exists")
 		}
 	}

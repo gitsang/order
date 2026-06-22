@@ -61,3 +61,6 @@ migrate-down:
 
 migrate-create:
 	migrate create -ext sql -dir scripts/migrations $(NAME)
+
+seed:
+	go run cmd/seed/main.go -admin-password $(ADMIN_PASSWORD)

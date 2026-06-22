@@ -1,6 +1,8 @@
 package config
 
 import (
+	"strings"
+
 	"github.com/spf13/viper"
 )
 
@@ -47,7 +49,17 @@ func Load() (*Config, error) {
 	viper.SetDefault("jwt.expiration", 24)
 	viper.SetDefault("loglevel", "info")
 
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()
+
+	viper.BindEnv("database.host", "DB_HOST")
+	viper.BindEnv("database.port", "DB_PORT")
+	viper.BindEnv("database.user", "DB_USER")
+	viper.BindEnv("database.password", "DB_PASSWORD")
+	viper.BindEnv("database.dbname", "DB_NAME")
+	viper.BindEnv("jwt.secret", "JWT_SECRET")
+	viper.BindEnv("server.port", "SERVER_PORT")
+	viper.BindEnv("loglevel", "LOG_LEVEL")
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {

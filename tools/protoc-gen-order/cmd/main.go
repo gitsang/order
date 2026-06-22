@@ -2,8 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
-	"os"
 
 	"google.golang.org/protobuf/compiler/protogen"
 )
