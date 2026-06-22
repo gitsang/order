@@ -1,4 +1,4 @@
-.PHONY: all init proto dev dev-server dev-web build build-server build-web docker-build docker-build-server docker-build-web docker-build-allinone docker-up docker-down lint test migrate-up migrate-down migrate-create
+.PHONY: all init proto dev dev-server dev-web build build-server build-web docker-build docker-build-server docker-build-web docker-build-allinone docker-up docker-down traefik-up traefik-down lint test migrate-up migrate-down migrate-create
 
 all: build
 
@@ -44,6 +44,12 @@ docker-up:
 
 docker-down:
 	podman-compose -f compose.yml down
+
+traefik-up:
+	podman-compose -f compose.yml --profile traefik --profile split up -d
+
+traefik-down:
+	podman-compose -f compose.yml --profile traefik --profile split down
 
 lint:
 	golangci-lint run

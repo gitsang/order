@@ -1,6 +1,23 @@
 version: '3.8'
 
 services:
+  traefik:
+    image: traefik:v3.0
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - traefik-public
+    profiles:
+      - traefik
+
   postgres:
     image: postgres:18-alpine
     environment:
@@ -28,8 +45,13 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-order123}
       DB_NAME: ${DB_NAME:-order}
       JWT_SECRET: ${JWT_SECRET:-your-secret-key}
-    ports:
-      - "8080:8080"
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.order-server.rule=Host(`${HOST}`) && PathPrefix(`/api`)
+      - traefik.http.services.order-server.loadbalancer.server.port=8080
+    networks:
+      - default
+      - traefik-public
     depends_on:
       postgres:
         condition: service_healthy
@@ -40,8 +62,12 @@ services:
     build:
       context: .
       dockerfile: Containerfile.order-web
-    ports:
-      - "3000:3000"
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.order-web.rule=Host(`${HOST}`)
+      - traefik.http.services.order-web.loadbalancer.server.port=3000
+    networks:
+      - traefik-public
     profiles:
       - split
 
@@ -67,3 +93,7 @@ services:
 
 volumes:
   pgdata:
+
+networks:
+  default:
+  traefik-public:
