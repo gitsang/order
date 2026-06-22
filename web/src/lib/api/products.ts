@@ -1,5 +1,5 @@
 import { api } from './client';
-import type { Product, ListProductsRequest } from './types';
+import type { Product, ListProductsRequest, CreateProductRequest, UpdateProductRequest } from './types';
 
 export const productsApi = {
 	list(params?: ListProductsRequest): Promise<Product[]> {
@@ -8,5 +8,17 @@ export const productsApi = {
 
 	get(id: string): Promise<Product> {
 		return api.get<Product>(`/products/${id}`);
+	},
+
+	create(data: CreateProductRequest): Promise<Product> {
+		return api.post<Product>('/products', data);
+	},
+
+	update(id: string, data: UpdateProductRequest): Promise<Product> {
+		return api.put<Product>(`/products/${id}`, data);
+	},
+
+	delete(id: string): Promise<void> {
+		return api.delete<void>(`/products/${id}`);
 	}
 };

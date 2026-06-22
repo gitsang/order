@@ -106,6 +106,36 @@ export interface ListOrdersRequest {
 	offset?: number;
 }
 
+export interface CreateProductRequest {
+	category_id: string;
+	name: string;
+	description?: string;
+	price: number;
+	image?: string;
+	status?: string;
+	sort_order?: number;
+}
+
+export interface UpdateProductRequest {
+	category_id?: string;
+	name?: string;
+	description?: string;
+	price?: number;
+	image?: string;
+	status?: string;
+	sort_order?: number;
+}
+
+export interface CreateCategoryRequest {
+	name: string;
+	sort_order?: number;
+}
+
+export interface UpdateCategoryRequest {
+	name?: string;
+	sort_order?: number;
+}
+
 // Cart item (client-side, extends product with quantity)
 export interface CartItem {
 	product: Product;

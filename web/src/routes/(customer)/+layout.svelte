@@ -1,11 +1,18 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
 	import { Home, ShoppingCart, ClipboardList } from 'lucide-svelte';
-	import { cart } from '$lib/stores';
+	import { auth, cart } from '$lib/stores';
 	import { cn } from '$lib/utils';
 
 	let { children }: { children: Snippet } = $props();
+
+	$effect(() => {
+		if (!$auth.isAuthenticated) {
+			goto('/login');
+		}
+	});
 
 	const tabs = [
 		{ href: '/', label: 'Home', icon: Home },

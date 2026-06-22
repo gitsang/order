@@ -20,6 +20,10 @@ func NewOrderHandler(orderService *service.OrderService) *OrderHandler {
 	return &OrderHandler{orderService: orderService}
 }
 
+type UpdateOrderStatusRequest struct {
+	Status string `json:"status"`
+}
+
 func (h *OrderHandler) Create(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value("user_id").(uuid.UUID)
 	if !ok {
@@ -91,4 +95,37 @@ func (h *OrderHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.Success(w, orders)
+}
+
+func (h *OrderHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		response.Error(w, http.StatusBadRequest, "Invalid order ID")
+		return
+	}
+
+	var req UpdateOrderStatusRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Error(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	if _, err := h.orderService.Get(id); err != nil {
+		response.Error(w, http.StatusNotFound, "Order not found")
+		return
+	}
+
+	if err := h.orderService.UpdateStatus(id, req.Status); err != nil {
+		response.Error(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	order, err := h.orderService.Get(id)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "Failed to get order")
+		return
+	}
+
+	response.Success(w, order)
 }

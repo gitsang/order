@@ -1,10 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
-	import { productsApi, categoriesApi } from '$lib/api';
-	import type { Product, Category } from '$lib/api/types';
+	import { categoriesApi } from '$lib/api';
+	import type { Category } from '$lib/api/types';
 
-	let products = $state<Product[]>([]);
 	let categories = $state<Category[]>([]);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
@@ -15,53 +14,30 @@
 	let submitting = $state(false);
 	let deleteConfirmId = $state<string | null>(null);
 
-	let formData = $state({
-		name: '',
-		category_id: '',
-		price: '',
-		description: '',
-		stock: '',
-		status: 'active'
-	});
+	let formData = $state({ name: '', sort_order: '' });
 
 	onMount(async () => {
-		await Promise.all([fetchProducts(), fetchCategories()]);
+		await fetchCategories();
 	});
 
-	async function fetchProducts() {
+	async function fetchCategories() {
 		loading = true;
 		error = null;
 		try {
-			products = await productsApi.list();
+			categories = await categoriesApi.list();
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to load products';
+			error = e instanceof Error ? e.message : 'Failed to load categories';
 		} finally {
 			loading = false;
 		}
 	}
 
-	async function fetchCategories() {
-		try {
-			categories = await categoriesApi.list();
-		} catch {
-			// Categories are optional for display
-		}
-	}
-
-	let filteredProducts = $derived(
-		products.filter(
-			(p) =>
-				p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-				(p.category?.name ?? '').toLowerCase().includes(searchQuery.toLowerCase())
-		)
+	let filteredCategories = $derived(
+		categories.filter((c) => c.name.toLowerCase().includes(searchQuery.toLowerCase()))
 	);
 
-	function getCategoryName(categoryId: string): string {
-		return categories.find((c) => c.id === categoryId)?.name ?? 'Unknown';
-	}
-
 	function resetForm() {
-		formData = { name: '', category_id: '', price: '', description: '', stock: '', status: 'active' };
+		formData = { name: '', sort_order: '' };
 		editingId = null;
 	}
 
@@ -70,90 +46,76 @@
 		showAddModal = true;
 	}
 
-	function openEdit(product: Product) {
-		editingId = product.id;
+	function openEdit(category: Category) {
+		editingId = category.id;
 		formData = {
-			name: product.name,
-			category_id: product.category_id,
-			price: String(product.price),
-			description: product.description ?? '',
-			stock: '0',
-			status: product.status
+			name: category.name,
+			sort_order: String(category.sort_order)
 		};
 		showAddModal = true;
 	}
 
 	async function handleSubmit(e: SubmitEvent) {
 		e.preventDefault();
-		if (!formData.name || !formData.category_id || !formData.price) return;
+		if (!formData.name) return;
 
 		submitting = true;
 		try {
 			if (editingId) {
-				const updated = await productsApi.update(editingId, {
+				const updated = await categoriesApi.update(editingId, {
 					name: formData.name,
-					category_id: formData.category_id,
-					price: parseFloat(formData.price) || 0,
-					description: formData.description,
-					status: formData.status
+					sort_order: parseInt(formData.sort_order, 10) || 0
 				});
-				products = products.map((p) => (p.id === editingId ? updated : p));
+				categories = categories.map((c) => (c.id === editingId ? updated : c));
 			} else {
-				const created = await productsApi.create({
+				const created = await categoriesApi.create({
 					name: formData.name,
-					category_id: formData.category_id,
-					price: parseFloat(formData.price) || 0,
-					description: formData.description,
-					status: formData.status
+					sort_order: parseInt(formData.sort_order, 10) || 0
 				});
-				products = [...products, created];
+				categories = [...categories, created];
 			}
 			showAddModal = false;
 			resetForm();
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to save product';
+			error = e instanceof Error ? e.message : 'Failed to save category';
 		} finally {
 			submitting = false;
 		}
 	}
 
-	async function deleteProduct(id: string) {
+	async function deleteCategory(id: string) {
 		try {
-			await productsApi.delete(id);
-			products = products.filter((p) => p.id !== id);
+			await categoriesApi.delete(id);
+			categories = categories.filter((c) => c.id !== id);
 			deleteConfirmId = null;
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to delete product';
+			error = e instanceof Error ? e.message : 'Failed to delete category';
 		}
-	}
-
-	function statusColor(status: string): string {
-		return status === 'active' ? 'bg-green-100 text-green-800' : 'bg-muted text-muted-foreground';
 	}
 </script>
 
 <svelte:head>
-	<title>Products - Coffee Admin</title>
+	<title>Categories - Coffee Admin</title>
 </svelte:head>
 
 <div class="space-y-6">
 	<div class="flex items-center justify-between">
 		<div>
-			<h1 class="text-2xl font-bold text-foreground">Products</h1>
-			<p class="mt-1 text-muted-foreground">{loading ? 'Loading...' : `${products.length} products total`}</p>
+			<h1 class="text-2xl font-bold text-foreground">Categories</h1>
+			<p class="mt-1 text-muted-foreground">{loading ? 'Loading...' : `${categories.length} categories total`}</p>
 		</div>
 		<Button onclick={openAdd}>
 			<svg class="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 				<path d="M12 5v14M5 12h14" />
 			</svg>
-			Add Product
+			Add Category
 		</Button>
 	</div>
 
 	{#if error}
 		<div class="rounded-md bg-destructive/10 p-4 text-sm text-destructive">
 			{error}
-			<button class="ml-2 underline" onclick={() => { error = null; fetchProducts(); }}>Retry</button>
+			<button class="ml-2 underline" onclick={() => { error = null; fetchCategories(); }}>Retry</button>
 		</div>
 	{/if}
 
@@ -166,7 +128,7 @@
 			<input
 				type="text"
 				bind:value={searchQuery}
-				placeholder="Search products..."
+				placeholder="Search categories..."
 				class="w-full rounded-md border border-border bg-background py-2 pl-10 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
 			/>
 		</div>
@@ -185,34 +147,24 @@
 					<thead>
 						<tr class="border-b border-border bg-muted/50">
 							<th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Name</th>
-							<th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Category</th>
-							<th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Price</th>
-							<th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Status</th>
+							<th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Sort Order</th>
 							<th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Actions</th>
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-border">
-						{#each filteredProducts as product (product.id)}
+						{#each filteredCategories as category (category.id)}
 							<tr class="hover:bg-muted/50">
-								<td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-foreground">{product.name}</td>
-								<td class="whitespace-nowrap px-6 py-4 text-sm text-muted-foreground">
-									{product.category?.name ?? getCategoryName(product.category_id)}
-								</td>
-								<td class="whitespace-nowrap px-6 py-4 text-sm text-foreground">${product.price.toFixed(2)}</td>
-								<td class="whitespace-nowrap px-6 py-4">
-									<span class="inline-flex rounded-full px-2 py-1 text-xs font-medium {statusColor(product.status)}">
-										{product.status}
-									</span>
-								</td>
+								<td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-foreground">{category.name}</td>
+								<td class="whitespace-nowrap px-6 py-4 text-sm text-muted-foreground">{category.sort_order}</td>
 								<td class="whitespace-nowrap px-6 py-4 text-right">
 									<div class="flex items-center justify-end gap-2">
-										<button class="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" onclick={() => openEdit(product)} title="Edit">
+										<button class="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" onclick={() => openEdit(category)} title="Edit">
 											<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 												<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
 												<path d="m15 5 4 4" />
 											</svg>
 										</button>
-										<button class="rounded-md p-1.5 text-destructive transition-colors hover:bg-destructive/10" onclick={() => (deleteConfirmId = product.id)} title="Delete">
+										<button class="rounded-md p-1.5 text-destructive transition-colors hover:bg-destructive/10" onclick={() => (deleteConfirmId = category.id)} title="Delete">
 											<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 												<path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
 											</svg>
@@ -222,8 +174,8 @@
 							</tr>
 						{:else}
 							<tr>
-								<td colspan="5" class="px-6 py-12 text-center text-muted-foreground">
-									{searchQuery ? 'No products match your search' : 'No products found'}
+								<td colspan="3" class="px-6 py-12 text-center text-muted-foreground">
+									{searchQuery ? 'No categories match your search' : 'No categories found'}
 								</td>
 							</tr>
 						{/each}
@@ -243,68 +195,31 @@
 		<!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
 		<div class="w-full max-w-md rounded-lg border border-border bg-card p-6" onclick={(e) => e.stopPropagation()}>
 			<h2 class="text-lg font-semibold text-foreground mb-4">
-				{editingId ? 'Edit Product' : 'Add New Product'}
+				{editingId ? 'Edit Category' : 'Add New Category'}
 			</h2>
 			<form onsubmit={handleSubmit}>
 				<div class="space-y-4">
 					<div>
-						<label class="mb-1 block text-sm font-medium text-foreground" for="product-name">Name</label>
+						<label class="mb-1 block text-sm font-medium text-foreground" for="category-name">Name</label>
 						<input
-							id="product-name"
+							id="category-name"
 							type="text"
 							bind:value={formData.name}
 							class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-							placeholder="e.g., Americano"
+							placeholder="e.g., Coffee"
 							required
 						/>
 					</div>
 					<div>
-						<label class="mb-1 block text-sm font-medium text-foreground" for="product-category">Category</label>
-						<select
-							id="product-category"
-							bind:value={formData.category_id}
-							class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-							required
-						>
-							<option value="">Select category</option>
-							{#each categories as category}
-								<option value={category.id}>{category.name}</option>
-							{/each}
-						</select>
-					</div>
-					<div>
-						<label class="mb-1 block text-sm font-medium text-foreground" for="product-price">Price ($)</label>
+						<label class="mb-1 block text-sm font-medium text-foreground" for="category-sort">Sort Order</label>
 						<input
-							id="product-price"
+							id="category-sort"
 							type="number"
-							step="0.01"
 							min="0"
-							bind:value={formData.price}
+							bind:value={formData.sort_order}
 							class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-							placeholder="4.00"
-							required
+							placeholder="0"
 						/>
-					</div>
-					<div>
-						<label class="mb-1 block text-sm font-medium text-foreground" for="product-description">Description</label>
-						<textarea
-							id="product-description"
-							bind:value={formData.description}
-							rows="2"
-							class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-							placeholder="Product description..."
-						></textarea>
-					</div>
-					<div>
-						<label class="mb-1 block text-sm font-medium text-foreground" for="product-status">Status</label>
-						<select
-							id="product-status"
-							bind:value={formData.status}
-							class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-						>
-							<option value="active">Active</option>
-							<option value="inactive">Inactive</option>
-						</select>
 					</div>
 				</div>
 				<div class="mt-6 flex gap-3">
@@ -313,7 +228,7 @@
 						disabled={submitting}
 						class="flex-1 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
 					>
-						{submitting ? 'Saving...' : editingId ? 'Save Changes' : 'Add Product'}
+						{submitting ? 'Saving...' : editingId ? 'Save Changes' : 'Add Category'}
 					</button>
 					<button type="button" class="flex-1 rounded-md border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-muted" onclick={() => { showAddModal = false; resetForm(); }}>
 						Cancel
@@ -332,12 +247,12 @@
 	>
 		<!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
 		<div class="w-full max-w-sm rounded-lg border border-border bg-card p-6" onclick={(e) => e.stopPropagation()}>
-			<h2 class="text-lg font-semibold text-foreground mb-2">Delete Product</h2>
-			<p class="text-sm text-muted-foreground mb-4">Are you sure you want to delete this product? This action cannot be undone.</p>
+			<h2 class="text-lg font-semibold text-foreground mb-2">Delete Category</h2>
+			<p class="text-sm text-muted-foreground mb-4">Are you sure you want to delete this category? Products in this category may be affected.</p>
 			<div class="flex gap-3">
 				<button
 					class="flex-1 rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground transition-colors hover:bg-destructive/90"
-					onclick={() => deleteProduct(deleteConfirmId!)}
+					onclick={() => deleteCategory(deleteConfirmId!)}
 				>
 					Delete
 				</button>

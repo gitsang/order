@@ -4,3 +4,4 @@ export type * from './types';
 export { authApi } from './auth';
 export { productsApi } from './products';
 export { ordersApi } from './orders';
+export { categoriesApi } from './categories';

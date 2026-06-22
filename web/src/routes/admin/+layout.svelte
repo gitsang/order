@@ -1,12 +1,21 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
+	import { auth } from '$lib/stores';
 
 	let { children }: { children: Snippet } = $props();
+
+	$effect(() => {
+		if (!$auth.isAuthenticated || $auth.user?.role !== 'admin') {
+			goto('/login');
+		}
+	});
 
 	const navItems = [
 		{ href: '/admin', label: 'Dashboard', icon: 'home' },
 		{ href: '/admin/products', label: 'Products', icon: 'package' },
+		{ href: '/admin/categories', label: 'Categories', icon: 'tag' },
 		{ href: '/admin/orders', label: 'Orders', icon: 'shopping-bag' }
 	];
 </script>
@@ -73,6 +82,19 @@
 							<path
 								d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
 							/>
+						</svg>
+					{:else if item.icon === 'tag'}
+						<svg
+							class="h-5 w-5"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
+							<path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z" />
+							<path d="M7 7h.01" />
 						</svg>
 					{:else if item.icon === 'shopping-bag'}
 						<svg

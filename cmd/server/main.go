@@ -42,14 +42,17 @@ func main() {
 	}
 
 	userRepo := repository.NewUserRepository(db)
+	categoryRepo := repository.NewCategoryRepository(db)
 	productRepo := repository.NewProductRepository(db)
 	orderRepo := repository.NewOrderRepository(db)
 
 	authService := service.NewAuthService(cfg.JWT, userRepo)
+	categoryService := service.NewCategoryService(categoryRepo)
 	productService := service.NewProductService(productRepo)
 	orderService := service.NewOrderService(orderRepo, productRepo)
 
 	authHandler := handler.NewAuthHandler(authService)
+	categoryHandler := handler.NewCategoryHandler(categoryService)
 	productHandler := handler.NewProductHandler(productService)
 	orderHandler := handler.NewOrderHandler(orderService)
 
@@ -76,12 +79,29 @@ func main() {
 		r.Group(func(r chi.Router) {
 			r.Use(handler.AuthMiddleware(authService))
 
+			r.Get("/auth/me", authHandler.GetMe)
+
 			r.Get("/products", productHandler.List)
 			r.Get("/products/{id}", productHandler.Get)
 
 			r.Post("/orders", orderHandler.Create)
 			r.Get("/orders", orderHandler.List)
 			r.Get("/orders/{id}", orderHandler.Get)
+
+			r.Route("/admin", func(r chi.Router) {
+				r.Use(handler.AdminMiddleware)
+
+				r.Get("/categories", categoryHandler.List)
+				r.Post("/categories", categoryHandler.Create)
+				r.Put("/categories/{id}", categoryHandler.Update)
+				r.Delete("/categories/{id}", categoryHandler.Delete)
+
+				r.Post("/products", productHandler.Create)
+				r.Put("/products/{id}", productHandler.Update)
+				r.Delete("/products/{id}", productHandler.Delete)
+
+				r.Put("/orders/{id}/status", orderHandler.UpdateStatus)
+			})
 		})
 	})
 

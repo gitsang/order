@@ -1,19 +1,16 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+	import { ordersApi } from '$lib/api';
+	import type { Order } from '$lib/api/types';
+
 	type OrderStatus = 'pending' | 'preparing' | 'ready' | 'completed' | 'cancelled';
+
+	let orders = $state<Order[]>([]);
+	let loading = $state(true);
+	let error = $state<string | null>(null);
 
 	let statusFilter = $state<OrderStatus | 'all'>('all');
 	let searchQuery = $state('');
-
-	let orders = $state([
-		{ id: 'ORD-001', customer: 'Alice Chen', items: ['Espresso', 'Latte', 'Croissant'], total: 11.0, status: 'pending' as OrderStatus, createdAt: '2024-01-15 09:30' },
-		{ id: 'ORD-002', customer: 'Bob Kim', items: ['Cappuccino'], total: 4.0, status: 'preparing' as OrderStatus, createdAt: '2024-01-15 09:45' },
-		{ id: 'ORD-003', customer: 'Carol Liu', items: ['Mocha', 'Muffin', 'Espresso', 'Latte', 'Tea'], total: 21.5, status: 'ready' as OrderStatus, createdAt: '2024-01-15 10:00' },
-		{ id: 'ORD-004', customer: 'David Park', items: ['Americano', 'Scone'], total: 7.5, status: 'completed' as OrderStatus, createdAt: '2024-01-15 08:15' },
-		{ id: 'ORD-005', customer: 'Eve Zhang', items: ['Latte'], total: 4.5, status: 'completed' as OrderStatus, createdAt: '2024-01-15 08:30' },
-		{ id: 'ORD-006', customer: 'Frank Wu', items: ['Espresso', 'Muffin'], total: 6.5, status: 'cancelled' as OrderStatus, createdAt: '2024-01-15 07:45' },
-		{ id: 'ORD-007', customer: 'Grace Li', items: ['Cappuccino', 'Croissant', 'Juice'], total: 12.0, status: 'pending' as OrderStatus, createdAt: '2024-01-15 10:15' },
-		{ id: 'ORD-008', customer: 'Henry Zhao', items: ['Mocha', 'Latte'], total: 9.5, status: 'preparing' as OrderStatus, createdAt: '2024-01-15 10:30' }
-	]);
 
 	const statusTabs: { value: OrderStatus | 'all'; label: string }[] = [
 		{ value: 'all', label: 'All' },
@@ -38,12 +35,28 @@
 		ready: 'completed'
 	};
 
+	onMount(async () => {
+		await fetchOrders();
+	});
+
+	async function fetchOrders() {
+		loading = true;
+		error = null;
+		try {
+			orders = await ordersApi.list({ limit: 100 });
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Failed to load orders';
+		} finally {
+			loading = false;
+		}
+	}
+
 	let filteredOrders = $derived(
 		orders.filter((o) => {
 			const matchesStatus = statusFilter === 'all' || o.status === statusFilter;
 			const matchesSearch =
-				o.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-				o.customer.toLowerCase().includes(searchQuery.toLowerCase());
+				o.order_no.toLowerCase().includes(searchQuery.toLowerCase()) ||
+				o.id.toLowerCase().includes(searchQuery.toLowerCase());
 			return matchesStatus && matchesSearch;
 		})
 	);
@@ -58,16 +71,44 @@
 		)
 	);
 
-	function advanceStatus(id: string) {
-		orders = orders.map((o) => {
-			if (o.id !== id) return o;
-			if (o.status === 'completed' || o.status === 'cancelled') return o;
-			return { ...o, status: nextStatus[o.status] };
-		});
+	async function advanceStatus(id: string) {
+		const order = orders.find((o) => o.id === id);
+		if (!order || order.status === 'completed' || order.status === 'cancelled') return;
+
+		const next = nextStatus[order.status as keyof typeof nextStatus];
+		if (!next) return;
+
+		try {
+			const updated = await ordersApi.updateStatus(id, next);
+			orders = orders.map((o) => (o.id === id ? updated : o));
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Failed to update order status';
+		}
 	}
 
-	function cancelOrder(id: string) {
-		orders = orders.map((o) => (o.id === id ? { ...o, status: 'cancelled' as OrderStatus } : o));
+	async function cancelOrder(id: string) {
+		try {
+			const updated = await ordersApi.updateStatus(id, 'cancelled');
+			orders = orders.map((o) => (o.id === id ? updated : o));
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Failed to cancel order';
+		}
+	}
+
+	function formatItems(order: Order): string[] {
+		return (order.items ?? []).map((item) => item.product?.name ?? `Item #${item.product_id}`);
+	}
+
+	function formatDate(dateStr?: string): string {
+		if (!dateStr) return '-';
+		const d = new Date(dateStr);
+		return d.toLocaleString('en-US', {
+			year: 'numeric',
+			month: '2-digit',
+			day: '2-digit',
+			hour: '2-digit',
+			minute: '2-digit'
+		});
 	}
 </script>
 
@@ -78,8 +119,15 @@
 <div class="space-y-6">
 	<div>
 		<h1 class="text-2xl font-bold text-foreground">Orders</h1>
-		<p class="mt-1 text-muted-foreground">{orders.length} orders total</p>
+		<p class="mt-1 text-muted-foreground">{loading ? 'Loading...' : `${orders.length} orders total`}</p>
 	</div>
+
+	{#if error}
+		<div class="rounded-md bg-destructive/10 p-4 text-sm text-destructive">
+			{error}
+			<button class="ml-2 underline" onclick={() => { error = null; fetchOrders(); }}>Retry</button>
+		</div>
+	{/if}
 
 	<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 		<div class="flex flex-wrap gap-2">
@@ -113,81 +161,87 @@
 
 	<div class="rounded-lg border border-border bg-card">
 		<div class="overflow-x-auto">
-			<table class="w-full">
-				<thead>
-					<tr class="border-b border-border bg-muted/50">
-						<th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Order ID</th>
-						<th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Customer</th>
-						<th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Items</th>
-						<th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Total</th>
-						<th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Status</th>
-						<th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Time</th>
-						<th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Actions</th>
-					</tr>
-				</thead>
-				<tbody class="divide-y divide-border">
-					{#each filteredOrders as order (order.id)}
-						<tr class="hover:bg-muted/50">
-							<td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-foreground">{order.id}</td>
-							<td class="whitespace-nowrap px-6 py-4 text-sm text-muted-foreground">{order.customer}</td>
-							<td class="px-6 py-4 text-sm text-muted-foreground">
-								<div class="flex flex-wrap gap-1">
-									{#each order.items.slice(0, 3) as item}
-										<span class="inline-flex rounded bg-muted px-1.5 py-0.5 text-xs">{item}</span>
-									{/each}
-									{#if order.items.length > 3}
-										<span class="inline-flex rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-											+{order.items.length - 3}
-										</span>
-									{/if}
-								</div>
-							</td>
-							<td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-foreground">${order.total.toFixed(2)}</td>
-							<td class="whitespace-nowrap px-6 py-4">
-								<span class="inline-flex rounded-full px-2 py-1 text-xs font-medium {statusColors[order.status]}">
-									{order.status}
-								</span>
-							</td>
-							<td class="whitespace-nowrap px-6 py-4 text-sm text-muted-foreground">{order.createdAt}</td>
-							<td class="whitespace-nowrap px-6 py-4 text-right">
-								<div class="flex items-center justify-end gap-2">
-									{#if order.status !== 'completed' && order.status !== 'cancelled'}
-										<button
-											class="rounded-md px-2.5 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
-											onclick={() => advanceStatus(order.id)}
-										>
-											{#if order.status === 'pending'}
-												Start Preparing
-											{:else if order.status === 'preparing'}
-												Mark Ready
-											{:else if order.status === 'ready'}
-												Complete
-											{/if}
-										</button>
-										<button
-											class="rounded-md p-1.5 text-destructive transition-colors hover:bg-destructive/10"
-											onclick={() => cancelOrder(order.id)}
-											title="Cancel order"
-										>
-											<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-												<path d="M18 6 6 18M6 6l12 12" />
-											</svg>
-										</button>
-									{:else}
-										<span class="text-xs text-muted-foreground">No actions</span>
-									{/if}
-								</div>
-							</td>
+			{#if loading}
+				<div class="flex items-center justify-center py-12">
+					<svg class="h-8 w-8 animate-spin text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" />
+					</svg>
+				</div>
+			{:else}
+				<table class="w-full">
+					<thead>
+						<tr class="border-b border-border bg-muted/50">
+							<th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Order No</th>
+							<th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Items</th>
+							<th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Total</th>
+							<th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Status</th>
+							<th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Time</th>
+							<th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Actions</th>
 						</tr>
-					{:else}
-						<tr>
-							<td colspan="7" class="px-6 py-12 text-center text-muted-foreground">
-								No orders found
-							</td>
-						</tr>
-					{/each}
-				</tbody>
-			</table>
+					</thead>
+					<tbody class="divide-y divide-border">
+						{#each filteredOrders as order (order.id)}
+							<tr class="hover:bg-muted/50">
+								<td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-foreground">{order.order_no}</td>
+								<td class="px-6 py-4 text-sm text-muted-foreground">
+									<div class="flex flex-wrap gap-1">
+										{#each formatItems(order).slice(0, 3) as item}
+											<span class="inline-flex rounded bg-muted px-1.5 py-0.5 text-xs">{item}</span>
+										{/each}
+										{#if (order.items?.length ?? 0) > 3}
+											<span class="inline-flex rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+												+{(order.items?.length ?? 0) - 3}
+											</span>
+										{/if}
+									</div>
+								</td>
+								<td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-foreground">${order.total_amount.toFixed(2)}</td>
+								<td class="whitespace-nowrap px-6 py-4">
+									<span class="inline-flex rounded-full px-2 py-1 text-xs font-medium {statusColors[order.status as OrderStatus] ?? 'bg-muted text-muted-foreground'}">
+										{order.status}
+									</span>
+								</td>
+								<td class="whitespace-nowrap px-6 py-4 text-sm text-muted-foreground">{formatDate(order.created_at)}</td>
+								<td class="whitespace-nowrap px-6 py-4 text-right">
+									<div class="flex items-center justify-end gap-2">
+										{#if order.status !== 'completed' && order.status !== 'cancelled'}
+											<button
+												class="rounded-md px-2.5 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
+												onclick={() => advanceStatus(order.id)}
+											>
+												{#if order.status === 'pending'}
+													Start Preparing
+												{:else if order.status === 'preparing'}
+													Mark Ready
+												{:else if order.status === 'ready'}
+													Complete
+												{/if}
+											</button>
+											<button
+												class="rounded-md p-1.5 text-destructive transition-colors hover:bg-destructive/10"
+												onclick={() => cancelOrder(order.id)}
+												title="Cancel order"
+											>
+												<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+													<path d="M18 6 6 18M6 6l12 12" />
+												</svg>
+											</button>
+										{:else}
+											<span class="text-xs text-muted-foreground">No actions</span>
+										{/if}
+									</div>
+								</td>
+							</tr>
+						{:else}
+							<tr>
+								<td colspan="6" class="px-6 py-12 text-center text-muted-foreground">
+									{searchQuery ? 'No orders match your search' : 'No orders found'}
+								</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			{/if}
 		</div>
 	</div>
 </div>

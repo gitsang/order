@@ -15,5 +15,9 @@ export const ordersApi = {
 
 	get(id: string): Promise<Order> {
 		return api.get<Order>(`/orders/${id}`);
+	},
+
+	updateStatus(id: string, status: string): Promise<Order> {
+		return api.put<Order>(`/orders/${id}/status`, { status });
 	}
 };

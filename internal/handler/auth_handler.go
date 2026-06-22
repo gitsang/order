@@ -62,3 +62,16 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		"username": user.Username,
 	})
 }
+
+func (h *AuthHandler) GetMe(w http.ResponseWriter, r *http.Request) {
+	userID := GetUserID(r)
+	username := GetUsername(r)
+	role := GetRole(r)
+
+	response.Success(w, map[string]string{
+		"id":       userID.String(),
+		"user_id":  userID.String(),
+		"username": username,
+		"role":     role,
+	})
+}
