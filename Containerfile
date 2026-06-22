@@ -16,20 +16,24 @@ RUN pnpm install --frozen-lockfile
 COPY web/ .
 RUN pnpm build
 
-FROM alpine:3.19
+FROM node:24-alpine
 
-RUN apk add --no-cache ca-certificates tzdata nginx supervisor
+RUN apk add --no-cache ca-certificates tzdata supervisor
 ENV TZ=Asia/Shanghai
 
 COPY --from=server-builder /order-server /usr/local/bin/order-server
 COPY migrations /app/migrations
 
-COPY --from=web-builder /build/build /var/www/html
+COPY --from=web-builder /build/build /app/web/build
+COPY --from=web-builder /build/package.json /app/web/
 
-COPY nginx.conf /etc/nginx/http.d/default.conf
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 WORKDIR /app
-EXPOSE 80 8080
+EXPOSE 3000 8080
+
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV HOST=0.0.0.0
 
 CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

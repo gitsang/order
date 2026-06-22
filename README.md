@@ -16,7 +16,7 @@ A modern coffee shop ordering system built with Go and Svelte.
 order/
 ├── api/order/v1/          # Protobuf definitions
 ├── cmd/server/            # Application entry point
-├── deploy/                # Container configs
+├── configs/               # Configuration files
 ├── internal/              # Private application code
 │   ├── config/
 │   ├── handler/
@@ -30,15 +30,20 @@ order/
 │   ├── logger/
 │   └── response/
 ├── tools/                 # Custom protoc plugins
-└── web/                   # Frontend application
+├── web/                   # Frontend application
+├── Containerfile          # All-in-one container
+├── Containerfile.order    # Backend container
+├── Containerfile.order-web # Frontend container
+├── compose.yml            # Container orchestration
+└── Makefile               # Build commands
 ```
 
 ## Getting Started
 
 ### Prerequisites
 
-- Go 1.22+
-- Node.js 20+
+- Go 1.26+
+- Node.js 24+
 - pnpm
 - PostgreSQL 16+
 - Podman (optional)
