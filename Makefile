@@ -5,7 +5,7 @@ all: build
 init:
 	go mod tidy
 	cd web && pnpm install
-	podman-compose -f deploy/compose.yml up -d postgres
+	podman-compose -f compose.yml up -d postgres
 
 proto:
 	protoc --go_out=. --go-grpc_out=. api/order/v1/*.proto
@@ -31,19 +31,19 @@ build-web:
 docker-build: docker-build-server docker-build-web docker-build-allinone
 
 docker-build-server:
-	podman build -t order-server -f deploy/Containerfile.order .
+	podman build -t order-server -f Containerfile.order .
 
 docker-build-web:
-	podman build -t order-web -f deploy/Containerfile.order-web .
+	podman build -t order-web -f Containerfile.order-web .
 
 docker-build-allinone:
-	podman build -t order -f deploy/Containerfile .
+	podman build -t order -f Containerfile .
 
 docker-up:
-	podman-compose -f deploy/compose.yml --profile allinone up -d
+	podman-compose -f compose.yml --profile allinone up -d
 
 docker-down:
-	podman-compose -f deploy/compose.yml down
+	podman-compose -f compose.yml down
 
 lint:
 	golangci-lint run

@@ -20,7 +20,7 @@ services:
   server:
     build:
       context: .
-      dockerfile: deploy/Containerfile.order
+      dockerfile: Containerfile.order
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
@@ -39,7 +39,7 @@ services:
   web:
     build:
       context: .
-      dockerfile: deploy/Containerfile.order-web
+      dockerfile: Containerfile.order-web
     ports:
       - "3000:80"
     profiles:
@@ -48,7 +48,7 @@ services:
   order:
     build:
       context: .
-      dockerfile: deploy/Containerfile
+      dockerfile: Containerfile
     environment:
       DB_HOST: postgres
       DB_PORT: 5432

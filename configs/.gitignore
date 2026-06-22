@@ -1,0 +1,5 @@
+# Ignore all yml files except examples
+*.yml
+*.yaml
+!*.example.yml
+!*.example.yaml

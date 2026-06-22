@@ -1,4 +1,4 @@
-FROM golang:1.22-alpine AS server-builder
+FROM golang:1.26-alpine AS server-builder
 
 WORKDIR /build
 COPY go.mod go.sum ./
@@ -6,7 +6,7 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 go build -o /order-server cmd/server/main.go
 
-FROM node:20-alpine AS web-builder
+FROM node:24-alpine AS web-builder
 
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
@@ -26,8 +26,8 @@ COPY migrations /app/migrations
 
 COPY --from=web-builder /build/build /var/www/html
 
-COPY deploy/nginx.conf /etc/nginx/http.d/default.conf
-COPY deploy/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY nginx.conf /etc/nginx/http.d/default.conf
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 WORKDIR /app
 EXPOSE 80 8080
